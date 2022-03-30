@@ -3,10 +3,31 @@
 require 'FormCreate.php';
 
 // типы расходных материалов
-$types = array('cartridge' => 'Картридж', 'tuba' => 'Туба');
+$types = array('cartridge' => 'Картридж',
+    'tuba' => 'Туба');
 
 // производители расходных материалов
-$manufacturers = array('hp' => 'HP', 'kyocera' => 'Kyocera');
+$manufacturers = array('hp' => 'HP',
+    'kyocera' => 'Kyocera');
+
+// Основная логика функционирования страницы:
+// - Если форма передана на обработку, проверить достоверность
+// данных, обработать их и снова отобразить форму.
+// - Если форма не передана на обработку, отобразить ее снова
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Если функция validate_form() возвратит ошибки,
+    // передать их функции show_form()
+    list($errors, $input) = validate_form();
+    if ($errors) {
+        show_form($errors);
+    } else {
+        // Переданные данные из формы достоверны, обработать их
+        process_form($input);
+    }
+} else {
+    // Данные из формы не переданы, отобразить ее снова
+    show_form() ;
+}
 
 // отображение списка, размечаемого дескриптором
 function generate_options_types($options_types)
@@ -25,27 +46,16 @@ function process_form()
 }
 
 // отобразить форму
-function show_form_cartridge($errors = false)
+function show_form($errors = array())
 {
-    $types = generate_options_types($GLOBALS['types']);
+    $defaults = array('types' => 'Выберите тип картриджа',
+        'manufacturers' => 'Выберите производителя');
+    // создать объект $form с надлежащими свойствами по умолчанию
+    $form = new FormCreate($defaults);
 
-// Если переданы ошибки, вывести их на экран
-    if ($errors) {
-        print 'Пожалуйста, исправьте эти ошибки: <ul ><li > ';
-        print implode('</li ><li > ', $errors);
-        print ' </li ></ul > ';
-    }
-    print <<<_HTML_
-<form method="POST" action="$_SERVER[PHP_SELF]">
-Наименование: <input type="text" name="cartridge_name">
-<br/>
-Тип: <select name="types">
-$types;
-</select>
-<br/>
-<input type="submit" value="Отправить">
-</form>
-_HTML_;
+    // Ради ясности весь код HTML-разметки и отображения
+    // формы вынесен в отдельный файл
+    include 'add_cartridge.php';
 }
 
 // проверить данные из формы
@@ -54,17 +64,26 @@ function validate_form()
 // начать с пустого массива сообщений об ошибках
     $errors = array();
     $input = array();
-    $input['cartridge_name'] = $_POST['cartridge_name'] ?? '';
-// добавить сообщение об ошибке, если введено слишком
-// короткое имя картриджа
-    if (strlen(trim($input['cartridge_name'])) < 3) {
-        $errors[] = 'Наименование должно состоять не менее чем из 3 букв . ';
+
+    // обязательное имя
+    $input['cartridge_name'] = trim($_POST['cartridge_name'] ?? '');
+    if (! strlen($input['name'])) {
+        $errors[] = 'Пожалуйста, введите наименование';
     }
-    $input['types'] = $_POST['types'];
-// проверяет, присутствует ли в массиве указанный ключ или индекс
-    if (! array_key_exists($input['types'], $GLOBALS['types'])) {
+
+    $input['types'] = '';
+    // проверяет, присутствует ли в массиве указанный ключ или индекс
+    if (!array_key_exists($input['types'], $GLOBALS['types']) ||
+        array_key_exists($input['types'], ['Выберите тип картриджа'])) {
         $errors[] = 'Пожалуйста, выберите тип';
     }
-// возвратить (возможно, пустой) массив сообщений об ошибках
+
+    $input['manufacturers'] = '';
+    if (!array_key_exists($input['manufacturers'], $GLOBALS['manufacturers']) ||
+        array_key_exists($input['manufacturers'], ['Выберите производителя'])) {
+        $errors[] = 'Пожалуйста, выберите производителя';
+    }
+
+    // возвратить (возможно, пустой) массив сообщений об ошибках
     return array($errors, $input);
 }
